@@ -34,6 +34,7 @@ type alias ElementMsg variation =
 
 type Styles
     = NoStyle
+    | HeadingStyle
     | NavMenuStyle
     | GridStyle
     | CellStyle
@@ -49,6 +50,9 @@ stylesheet =
     Style.styleSheet
         [ Style.style NoStyle []
         , Style.style GridStyle []
+        , Style.style HeadingStyle
+            [ Font.size 40
+            ]
         , Style.style CellStyle
             [ Style.hover [ Shadow.deep ]
             , Color.background Color.white
@@ -94,7 +98,7 @@ initialModel =
     , chaptersWithContent = []
     , pageNumber = 1
     , languages = []
-    , languageSelector = Input.autocomplete Nothing SelectLanguage
+    , languageSelector = Input.autocomplete (Just (Language "eng" "English")) SelectLanguage
     }
 
 
@@ -168,23 +172,28 @@ update msg model =
                 newSelector =
                     Input.updateSelection selectMsg model.languageSelector
 
-                cmd =
+                newLanguage =
                     case Input.selected newSelector of
                         Just newSelectedLanguage ->
                             case Input.selected model.languageSelector of
                                 Just oldSelectedLanguage ->
                                     if newSelectedLanguage /= oldSelectedLanguage then
-                                        getBooksInLanguage newSelectedLanguage
+                                        Just newSelectedLanguage
                                     else
-                                        Cmd.none
+                                        Nothing
 
                                 Nothing ->
-                                    getBooksInLanguage newSelectedLanguage
+                                    Just newSelectedLanguage
 
                         Nothing ->
-                            Cmd.none
+                            Nothing
             in
-            { model | languageSelector = newSelector } ! [ cmd ]
+            case newLanguage of
+                Just newLang ->
+                    { model | languageSelector = newSelector, books = [], chaptersWithContent = [] } ! [ getBooksInLanguage newLang ]
+
+                Nothing ->
+                    { model | languageSelector = newSelector } ! []
 
         KeyPress code ->
             case code of
@@ -233,6 +242,15 @@ view model =
                         { name = "Main Navigation"
                         , options = []
                         }
+                    , el HeadingStyle
+                        []
+                        ("Global Digital Library – "
+                            ++ (Input.selected model.languageSelector
+                                    |> Maybe.map .name
+                                    |> Maybe.withDefault ""
+                               )
+                            |> text
+                        )
                     , viewLanguages model.languageSelector model.languages
                     , viewBooks model.books
                     ]
@@ -245,7 +263,7 @@ viewLanguages selector languages =
     Input.select NoStyle
         []
         { label = Input.labelAbove <| text "Language"
-        , max = 5
+        , max = 15
         , options = []
         , with = selector
         , menu =

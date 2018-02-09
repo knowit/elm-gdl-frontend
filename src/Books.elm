@@ -17,9 +17,31 @@ defaultLanguage =
     Language "eng" "English"
 
 
+gdlEnvironment =
+    Test
+
+
+type GdlEnvironment
+    = Local
+    | Test
+    | Staging
+    | Prod
+
+
 baseUrl : String
 baseUrl =
-    "https://api.test.digitallibrary.io/book-api/v1"
+    case gdlEnvironment of
+        Local ->
+            "http://localhost:40001/book-api/v1"
+
+        Test ->
+            "https://api.test.digitallibrary.io/book-api/v1"
+
+        Staging ->
+            "https://api.staging.digitallibrary.io/book-api/v1"
+
+        Prod ->
+            "https://api.digitallibrary.io/book-api/v1"
 
 
 type alias Book =
@@ -57,7 +79,7 @@ getBooks : Maybe Language -> Http.Request (List Book)
 getBooks language =
     let
         url =
-            baseUrl ++ "/books/" ++ (Maybe.withDefault defaultLanguage language |> .code) ++ "/?page-size=50"
+            baseUrl ++ "/books/" ++ (Maybe.withDefault defaultLanguage language |> .code) ++ "/?page-size=20"
     in
     Http.get url (field "results" (list book))
 
