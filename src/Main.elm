@@ -10,6 +10,7 @@ import Html exposing (Html, program)
 import Html.Attributes.Extra exposing (innerHtml)
 import Html.Events as HtmlEvents
 import Http
+import Keyboard
 import Style exposing (..)
 import Style.Border as Border
 import Style.Color as Color
@@ -98,6 +99,7 @@ type Msg
     | ChapterResult (Result Http.Error ChapterWithContent)
     | ChooseBook Book
     | NextPage
+    | KeyPress Keyboard.KeyCode
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -128,6 +130,17 @@ update msg model =
         NextPage ->
             { model | pageNumber = model.pageNumber + 1 } ! []
 
+        KeyPress code ->
+            case code of
+                39 ->
+                    { model | pageNumber = model.pageNumber + 1 } ! []
+
+                27 ->
+                    { model | pageNumber = 1, page = BookOverview } ! []
+
+                _ ->
+                    ( model, Cmd.none )
+
 
 addChapterWithContent : List ChapterWithContent -> ChapterWithContent -> List ChapterWithContent
 addChapterWithContent chapters chapter =
@@ -136,7 +149,12 @@ addChapterWithContent chapters chapter =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+    case model.page of
+        BookOverview ->
+            Sub.none
+
+        ReadBook book ->
+            Keyboard.downs KeyPress
 
 
 view : Model -> Html Msg
