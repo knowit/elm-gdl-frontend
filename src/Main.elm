@@ -1,11 +1,20 @@
 module Main exposing (..)
 
 import Books exposing (..)
-import Html exposing (..)
-import Html.Attributes exposing (..)
+import Color exposing (..)
+import Element exposing (..)
+import Element.Attributes exposing (..)
+import Element.Events exposing (..)
+import Exts.List exposing (chunk)
+import Html exposing (Html, program)
 import Html.Attributes.Extra exposing (innerHtml)
-import Html.Events exposing (onClick)
+import Html.Events as HtmlEvents
 import Http
+import Style exposing (..)
+import Style.Border as Border
+import Style.Color as Color
+import Style.Font as Font
+import Style.Shadow as Shadow
 
 
 main : Program Never Model Msg
@@ -18,10 +27,50 @@ main =
         }
 
 
+type Styles
+    = NoStyle
+    | Heading1
+    | GridStyle
+    | CellStyle
+    | BookStyle
+    | BookTitleStyle
+    | LevelStyle
+    | BookReaderTitleStyle
+
+
+stylesheet : StyleSheet Styles variation
+stylesheet =
+    Style.styleSheet
+        [ Style.style NoStyle []
+        , Style.style GridStyle []
+        , Style.style CellStyle
+            [ Style.hover [ Shadow.deep ]
+            , Color.background Color.white
+            ]
+        , Style.style Heading1
+            [ Font.size 40 ]
+        , Style.style BookStyle
+            [ Font.size 20 ]
+        , Style.style BookTitleStyle
+            [ Font.typeface [ Font.sansSerif ] ]
+        , Style.style LevelStyle
+            [ Shadow.box { offset = ( 0.0, 0.0 ), size = 2.0, blur = 0.12, color = Color.rgba 0 0 0 0.12 }
+            , Border.rounded 4
+            , Color.background <| Color.rgb 102 102 102
+            , Color.text Color.white
+            ]
+        , Style.style BookReaderTitleStyle
+            [ Font.size 50 ]
+        ]
+
+
 type alias Model =
     { books : List Book
     , page : Page
     , chaptersWithContent : List ChapterWithContent
+
+    -- TODO Improve this
+    , pageNumber : Int
     }
 
 
@@ -35,6 +84,7 @@ initialModel =
     { books = []
     , page = BookOverview
     , chaptersWithContent = []
+    , pageNumber = 1
     }
 
 
@@ -76,7 +126,7 @@ update msg model =
             ( model, Cmd.none )
 
         NextPage ->
-            { model | chaptersWithContent = List.tail model.chaptersWithContent |> Maybe.withDefault [] } ! []
+            { model | pageNumber = model.pageNumber + 1 } ! []
 
 
 addChapterWithContent : List ChapterWithContent -> ChapterWithContent -> List ChapterWithContent
@@ -91,58 +141,88 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
-    div [ style [ ( "text-align", "center" ) ] ]
-        [ h1 [] [ text "Global Digital Library" ]
-        , case model.page of
+    Element.layout stylesheet <|
+        case model.page of
             BookOverview ->
-                div []
-                    [ h2 [] [ text "Books" ]
-                    , model.books
-                        |> List.map viewBook
-                        |> div []
+                column NoStyle
+                    []
+                    [ el Heading1 [] (text "Books")
+                    , viewBooks model.books
                     ]
 
             ReadBook book ->
-                model.chaptersWithContent
-                    |> List.sortBy .seqNo
-                    |> readBook book
+                viewBookReader book model.pageNumber model.chaptersWithContent
+
+
+viewBooks : List Book -> Element Styles variation Msg
+viewBooks books =
+    let
+        nChunks =
+            4
+
+        bookChunks =
+            chunk nChunks books
+
+        nRows =
+            List.length bookChunks
+    in
+    grid GridStyle
+        [ padding 50, spacing 10 ]
+        { columns = List.repeat nChunks (px 200)
+        , rows = List.repeat nRows (px 310)
+        , cells =
+            bookChunks
+                |> List.indexedMap bookRow
+                |> List.concat
+        }
+
+
+bookRow : Int -> List Book -> List (OnGrid (Element Styles variation Msg))
+bookRow rowIndex books =
+    books
+        |> List.indexedMap (bookCell rowIndex)
+
+
+bookCell : Int -> Int -> Book -> OnGrid (Element Styles variation Msg)
+bookCell rowIndex columnIndex book =
+    cell
+        { start = ( columnIndex, rowIndex )
+        , width = 1
+        , height = 1
+        , content =
+            column CellStyle
+                [ onClick (ChooseBook book), center, width (px 200), height (px 300) ]
+                [ image NoStyle
+                    [ width (px 200), padding 5 ]
+                    { src = book.coverPhotoUrl ++ "?focalX=50&focalY=50&ratio=0.81&width=200"
+                    , caption = "Book cover for " ++ book.title
+                    }
+                , el BookTitleStyle [] (text book.title)
+                , el LevelStyle [ paddingLeft 10, paddingRight 10 ] (text <| "Level " ++ book.readingLevel)
+                ]
+        }
+
+
+findChapter : Int -> List ChapterWithContent -> Maybe ChapterWithContent
+findChapter pageNumber chapters =
+    chapters
+        |> List.filter (\c -> c.seqNo == pageNumber)
+        |> List.head
+
+
+viewBookReader book pageNumber chapters =
+    column NoStyle
+        [ center ]
+        [ el BookReaderTitleStyle [] (text book.title)
+        , findChapter pageNumber chapters
+            |> Maybe.map viewChapter
+            |> Maybe.withDefault empty
         ]
 
 
-viewBook : Book -> Html Msg
-viewBook book =
-    p [ onClick (ChooseBook book) ]
-        [ div []
-            [ img [ book.coverPhotoUrl ++ "?width=250" |> src ] []
-            , div [] [ text book.title ]
-            , div [] [ "Level " ++ book.readingLevel |> text ]
-            ]
-        ]
-
-
-readBook : Book -> List ChapterWithContent -> Html Msg
-readBook book chapters =
-    div []
-        [ h2 [] [ text book.title ]
-        , p [] [ text book.description ]
-        , case chapters of
-            first :: second :: rest ->
-                div []
-                    [ viewChapter first
-                    , button [ onClick NextPage ] [ text "->" ]
-                    ]
-
-            last :: [] ->
-                viewChapter last
-
-            _ ->
-                text ""
-        ]
-
-
-viewChapter : ChapterWithContent -> Html Msg
 viewChapter chapter =
-    div []
-        [ h3 [] [ "Chapter " ++ toString chapter.seqNo |> text ]
-        , p [ innerHtml chapter.content ] []
+    Html.div []
+        [ Html.div [ innerHtml chapter.content ] []
+        , Html.button [ HtmlEvents.onClick NextPage ] [ Html.text "->" ]
         ]
+        |> html
