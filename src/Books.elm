@@ -10,7 +10,8 @@ module Books
         )
 
 import Http
-import Json.Decode as Decode exposing (..)
+import Json.Decode exposing (..)
+import Json.Decode.Pipeline exposing (..)
 
 
 defaultLanguage =
@@ -96,34 +97,34 @@ getLanguages =
 
 book : Decoder Book
 book =
-    map7 Book
-        (field "title" string)
-        (field "description" string)
-        (field "language" language)
-        (at [ "publisher", "name" ] string)
-        (field "readingLevel" string)
-        (at [ "coverPhoto", "large" ] string)
-        (field "chapters" (list chapter))
+    decode Book
+        |> required "title" string
+        |> required "description" string
+        |> required "language" language
+        |> requiredAt [ "publisher", "name" ] string
+        |> required "readingLevel" string
+        |> requiredAt [ "coverPhoto", "large" ] string
+        |> required "chapters" (list chapter)
 
 
 language : Decoder Language
 language =
-    map2 Language
-        (field "code" string)
-        (field "name" string)
+    decode Language
+        |> required "code" string
+        |> required "name" string
 
 
 chapter : Decoder Chapter
 chapter =
-    map3 Chapter
-        (field "id" int)
-        (field "seqNo" int)
-        (field "url" string)
+    decode Chapter
+        |> required "id" int
+        |> required "seqNo" int
+        |> required "url" string
 
 
 chapterWithContent : Decoder ChapterWithContent
 chapterWithContent =
-    map3 ChapterWithContent
-        (field "id" int)
-        (field "seqNo" int)
-        (field "content" string)
+    decode ChapterWithContent
+        |> required "id" int
+        |> required "seqNo" int
+        |> required "content" string
