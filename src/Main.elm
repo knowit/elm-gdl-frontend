@@ -28,12 +28,17 @@ main =
         }
 
 
+type alias ElementMsg variation =
+    Element Styles variation Msg
+
+
 type Styles
     = NoStyle
     | Heading1
     | GridStyle
     | CellStyle
     | BookStyle
+    | ImageStyle
     | BookTitleStyle
     | LevelStyle
     | BookReaderTitleStyle
@@ -54,6 +59,8 @@ stylesheet =
             [ Font.size 20 ]
         , Style.style BookTitleStyle
             [ Font.typeface [ Font.sansSerif ] ]
+        , Style.style ImageStyle
+            [ Border.rounded 10 ]
         , Style.style LevelStyle
             [ Shadow.box { offset = ( 0.0, 0.0 ), size = 2.0, blur = 0.12, color = Color.rgba 0 0 0 0.12 }
             , Border.rounded 4
@@ -177,7 +184,7 @@ view model =
                 viewBookReader book model.pageNumber model.chaptersWithContent
 
 
-viewBooks : List Book -> Element Styles variation Msg
+viewBooks : List Book -> ElementMsg v
 viewBooks books =
     let
         nChunks =
@@ -200,13 +207,13 @@ viewBooks books =
         }
 
 
-bookRow : Int -> List Book -> List (OnGrid (Element Styles variation Msg))
+bookRow : Int -> List Book -> List (OnGrid (ElementMsg v))
 bookRow rowIndex books =
     books
         |> List.indexedMap (bookCell rowIndex)
 
 
-bookCell : Int -> Int -> Book -> OnGrid (Element Styles variation Msg)
+bookCell : Int -> Int -> Book -> OnGrid (ElementMsg v)
 bookCell rowIndex columnIndex book =
     cell
         { start = ( columnIndex, rowIndex )
@@ -215,7 +222,7 @@ bookCell rowIndex columnIndex book =
         , content =
             column CellStyle
                 [ onClick (ChooseBook book), center, width (px 200), height (px 300) ]
-                [ image NoStyle
+                [ image ImageStyle
                     [ width (px 200), padding 5 ]
                     { src = book.coverPhotoUrl ++ "?focalX=50&focalY=50&ratio=0.81&width=200"
                     , caption = "Book cover for " ++ book.title
@@ -233,6 +240,7 @@ findChapter pageNumber chapters =
         |> List.head
 
 
+viewBookReader : Book -> Int -> List ChapterWithContent -> ElementMsg v
 viewBookReader book pageNumber chapters =
     column NoStyle
         [ center ]
@@ -243,6 +251,7 @@ viewBookReader book pageNumber chapters =
         ]
 
 
+viewChapter : ChapterWithContent -> ElementMsg v
 viewChapter chapter =
     Html.div []
         [ Html.div [ innerHtml chapter.content ] []
