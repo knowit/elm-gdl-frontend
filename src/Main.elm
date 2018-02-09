@@ -106,6 +106,7 @@ type Msg
     | ChapterResult (Result Http.Error ChapterWithContent)
     | ChooseBook Book
     | NextPage
+    | PreviousPage
     | KeyPress Keyboard.KeyCode
 
 
@@ -135,12 +136,18 @@ update msg model =
             ( model, Cmd.none )
 
         NextPage ->
-            { model | pageNumber = model.pageNumber + 1 } ! []
+            { model | pageNumber = min (model.pageNumber + 1) (List.length model.chaptersWithContent) } ! []
+
+        PreviousPage ->
+            { model | pageNumber = max (model.pageNumber - 1) 1 } ! []
 
         KeyPress code ->
             case code of
                 39 ->
-                    { model | pageNumber = model.pageNumber + 1 } ! []
+                    { model | pageNumber = min (model.pageNumber + 1) (List.length model.chaptersWithContent) } ! []
+
+                37 ->
+                    { model | pageNumber = max (model.pageNumber - 1) 1 } ! []
 
                 27 ->
                     { model
@@ -253,8 +260,4 @@ viewBookReader book pageNumber chapters =
 
 viewChapter : ChapterWithContent -> ElementMsg v
 viewChapter chapter =
-    Html.div []
-        [ Html.div [ innerHtml chapter.content ] []
-        , Html.button [ HtmlEvents.onClick NextPage ] [ Html.text "->" ]
-        ]
-        |> html
+    Html.div [ innerHtml chapter.content ] [] |> html
