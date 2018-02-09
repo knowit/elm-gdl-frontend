@@ -5,10 +5,10 @@ import Color exposing (..)
 import Element exposing (..)
 import Element.Attributes exposing (..)
 import Element.Events exposing (..)
+import Element.Input as Input
 import Exts.List exposing (chunk)
 import Html exposing (Html, program)
 import Html.Attributes.Extra exposing (innerHtml)
-import Html.Events as HtmlEvents
 import Http
 import Keyboard
 import Style exposing (..)
@@ -34,7 +34,7 @@ type alias ElementMsg variation =
 
 type Styles
     = NoStyle
-    | Heading1
+    | NavMenuStyle
     | GridStyle
     | CellStyle
     | BookStyle
@@ -53,8 +53,6 @@ stylesheet =
             [ Style.hover [ Shadow.deep ]
             , Color.background Color.white
             ]
-        , Style.style Heading1
-            [ Font.size 40 ]
         , Style.style BookStyle
             [ Font.size 20 ]
         , Style.style BookTitleStyle
@@ -79,6 +77,8 @@ type alias Model =
 
     -- TODO Improve this
     , pageNumber : Int
+    , languages : List Language
+    , languageSelector : Input.SelectWith Language Msg
     }
 
 
@@ -93,20 +93,36 @@ initialModel =
     , page = BookOverview
     , chaptersWithContent = []
     , pageNumber = 1
+    , languages = []
+    , languageSelector = Input.autocomplete Nothing SelectLanguage
     }
 
 
 init : ( Model, Cmd Msg )
 init =
-    ( initialModel, Http.send BooksResult getBooks )
+    ( initialModel
+    , Cmd.batch
+        [ Http.send LanguagesResult getLanguages
+        , Http.send BooksResult (getBooks Nothing)
+        ]
+    )
+
+
+getBooksInLanguage : Language -> Cmd Msg
+getBooksInLanguage language =
+    Just language
+        |> getBooks
+        |> Http.send BooksResult
 
 
 type Msg
     = BooksResult (Result Http.Error (List Book))
     | ChapterResult (Result Http.Error ChapterWithContent)
+    | LanguagesResult (Result Http.Error (List Language))
     | ChooseBook Book
     | NextPage
     | PreviousPage
+    | SelectLanguage (Input.SelectMsg Language)
     | KeyPress Keyboard.KeyCode
 
 
@@ -135,11 +151,40 @@ update msg model =
         ChapterResult (Err _) ->
             ( model, Cmd.none )
 
+        LanguagesResult (Ok languages) ->
+            ( { model | languages = languages }, Cmd.none )
+
+        LanguagesResult (Err _) ->
+            ( model, Cmd.none )
+
         NextPage ->
             { model | pageNumber = min (model.pageNumber + 1) (List.length model.chaptersWithContent) } ! []
 
         PreviousPage ->
             { model | pageNumber = max (model.pageNumber - 1) 1 } ! []
+
+        SelectLanguage selectMsg ->
+            let
+                newSelector =
+                    Input.updateSelection selectMsg model.languageSelector
+
+                cmd =
+                    case Input.selected newSelector of
+                        Just newSelectedLanguage ->
+                            case Input.selected model.languageSelector of
+                                Just oldSelectedLanguage ->
+                                    if newSelectedLanguage /= oldSelectedLanguage then
+                                        getBooksInLanguage newSelectedLanguage
+                                    else
+                                        Cmd.none
+
+                                Nothing ->
+                                    getBooksInLanguage newSelectedLanguage
+
+                        Nothing ->
+                            Cmd.none
+            in
+            { model | languageSelector = newSelector } ! [ cmd ]
 
         KeyPress code ->
             case code of
@@ -183,12 +228,33 @@ view model =
             BookOverview ->
                 column NoStyle
                     []
-                    [ el Heading1 [] (text "Books")
+                    [ navigation NavMenuStyle
+                        []
+                        { name = "Main Navigation"
+                        , options = []
+                        }
+                    , viewLanguages model.languageSelector model.languages
                     , viewBooks model.books
                     ]
 
             ReadBook book ->
                 viewBookReader book model.pageNumber model.chaptersWithContent
+
+
+viewLanguages selector languages =
+    Input.select NoStyle
+        []
+        { label = Input.labelAbove <| text "Language"
+        , max = 5
+        , options = []
+        , with = selector
+        , menu =
+            Input.menu NoStyle
+                []
+                (languages
+                    |> List.map (\l -> Input.choice l (text l.name))
+                )
+        }
 
 
 viewBooks : List Book -> ElementMsg v

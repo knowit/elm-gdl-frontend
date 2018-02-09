@@ -1,12 +1,25 @@
-module Books exposing (Book, Chapter, ChapterWithContent, getBooks, getChapter)
+module Books
+    exposing
+        ( Book
+        , Chapter
+        , ChapterWithContent
+        , Language
+        , getBooks
+        , getChapter
+        , getLanguages
+        )
 
 import Http
 import Json.Decode as Decode exposing (..)
 
 
+defaultLanguage =
+    Language "eng" "English"
+
+
 baseUrl : String
 baseUrl =
-    "https://api.test.digitallibrary.io/book-api/v1/books/eng/?page-size=50"
+    "https://api.test.digitallibrary.io/book-api/v1"
 
 
 type alias Book =
@@ -40,14 +53,23 @@ type alias ChapterWithContent =
     }
 
 
-getBooks : Http.Request (List Book)
-getBooks =
-    Http.get baseUrl (field "results" (list book))
+getBooks : Maybe Language -> Http.Request (List Book)
+getBooks language =
+    let
+        url =
+            baseUrl ++ "/books/" ++ (Maybe.withDefault defaultLanguage language |> .code) ++ "/?page-size=50"
+    in
+    Http.get url (field "results" (list book))
 
 
 getChapter : Chapter -> Http.Request ChapterWithContent
 getChapter chapter =
     Http.get chapter.url chapterWithContent
+
+
+getLanguages : Http.Request (List Language)
+getLanguages =
+    Http.get (baseUrl ++ "/languages") (list language)
 
 
 book : Decoder Book
