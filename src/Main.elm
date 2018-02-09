@@ -136,7 +136,12 @@ update msg model =
                     { model | pageNumber = model.pageNumber + 1 } ! []
 
                 27 ->
-                    { model | pageNumber = 1, page = BookOverview } ! []
+                    { model
+                        | pageNumber = 1
+                        , page = BookOverview
+                        , chaptersWithContent = []
+                    }
+                        ! []
 
                 _ ->
                     ( model, Cmd.none )
@@ -176,7 +181,7 @@ viewBooks : List Book -> Element Styles variation Msg
 viewBooks books =
     let
         nChunks =
-            4
+            6
 
         bookChunks =
             chunk nChunks books

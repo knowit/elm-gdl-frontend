@@ -6,7 +6,7 @@ import Json.Decode as Decode exposing (..)
 
 baseUrl : String
 baseUrl =
-    "https://api.test.digitallibrary.io/book-api/v1/books"
+    "https://api.test.digitallibrary.io/book-api/v1/books/eng/?page-size=50"
 
 
 type alias Book =
