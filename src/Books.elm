@@ -14,10 +14,6 @@ import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
 
 
-defaultLanguage =
-    Language "eng" "English"
-
-
 gdlEnvironment =
     Test
 
@@ -46,7 +42,8 @@ baseUrl =
 
 
 type alias Book =
-    { title : String
+    { id : Int
+    , title : String
     , description : String
     , language : Language
     , publisher : String
@@ -76,11 +73,11 @@ type alias ChapterWithContent =
     }
 
 
-getBooks : Maybe Language -> Http.Request (List Book)
+getBooks : { code : String } -> Http.Request (List Book)
 getBooks language =
     let
         url =
-            baseUrl ++ "/books/" ++ (Maybe.withDefault defaultLanguage language |> .code) ++ "/?page-size=20"
+            baseUrl ++ "/books/" ++ language.code ++ "/?page-size=30"
     in
     Http.get url (field "results" (list book))
 
@@ -98,6 +95,7 @@ getLanguages =
 book : Decoder Book
 book =
     decode Book
+        |> required "id" int
         |> required "title" string
         |> required "description" string
         |> required "language" language
